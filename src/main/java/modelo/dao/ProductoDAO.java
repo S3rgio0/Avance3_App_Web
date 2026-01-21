@@ -1,137 +1,207 @@
 package modelo.dao;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 
-import modelo.conexion.BddConnection;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
+import jakarta.persistence.Query;
 import modelo.entidad.Producto;
 
 public class ProductoDAO {
-	
-	private static List<Producto> productos;
-	
-	public static Producto obtenerDetalles(int id) {
-		List<Producto> productos = obtenerProductos();
 
-		for (Producto p : productos) {
-			if (p.getIdProducto() == id) {
-				return p;
-			}
+	private static EntityManager em;
+
+	/**
+	 * Obtiene el EntityManager, creando la factoría si es necesario
+	 */
+	private static EntityManager getEntityManager() {
+		if (em == null || !em.isOpen()) {
+			EntityManagerFactory emf = Persistence.createEntityManagerFactory("persistencia");
+			em = emf.createEntityManager();
 		}
-		return null;
+		return em;
 	}
 
-	public static List<Producto> obtenerProductos() {
-		
-		String _SQL_GET_ALL_ = "SELECT * FROM PRODUCTO";
+	/**
+	 * Obtiene los detalles de un producto por su ID
+	 * 
+	 * @param id ID del producto
+	 * @return Producto encontrado o null
+	 */
+	public static Producto obtenerDetalles(int id) {
 		try {
-			PreparedStatement pstmt = BddConnection.getConexion().prepareStatement(_SQL_GET_ALL_);
-			ResultSet rs = pstmt.executeQuery();
-			
-			List<Producto> productos = new ArrayList<>();
-			
-			while (rs.next()) {
-			    productos.add(new Producto(
-			        rs.getString("imagen"),                       // 1. imagen (varchar)
-			        rs.getString("descripcion"),                  // 2. descripcion (varchar)
-			        rs.getFloat("precio"),                        // 3. precio (float)
-			        rs.getInt("condicion") == 1 ? "Nuevo" : "Usado", // 4. Convert tinyint back to String
-			        rs.getBoolean("disponibilidad"),              // 5. disponibilidad (tinyint/boolean)
-			        rs.getInt("idProducto"),                      // 6. idProducto (int)
-			        rs.getString("nombre")                        // 7. nombre (varchar)
-			    ));
-			}
-			BddConnection.cerrar(rs);
-			BddConnection.cerrar(pstmt);
-			BddConnection.cerrar();
-			for(Producto p: productos) {
-				System.out.println(p.toString());
-			}
-			return productos;
-		} catch (SQLException e) {
+			EntityManager entityManager = getEntityManager();
+			return entityManager.find(Producto.class, id);
+		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
 		}
-		
-		
-		/*
-		if (productos == null) {
-			productos = new ArrayList<>();
-
-			productos.add(new Producto("thriller.jpg", "Edición original de 1982, Epic Records", 45.00f, "Nuevo", true, 4, "Thriller"));
-
-			productos.add(new Producto("discovery.jpg", "Doble LP, incluye artes originales", 55.25f, "Nuevo", true, 5, "Discovery"));
-
-			productos.add(new Producto("cancion-animal.jpg", "Remasterizado en 180 gramos", 38.00f, "Nuevo", true, 6, "Canción Animal"));
-
-			productos.add(new Producto("rumours.jpg", "Edición clásica, excelente estado", 29.99f, "Usado", true, 7, "Rumours"));
-
-			productos.add(new Producto("tpab.jpg", "Gatefold edition, incluye libreto", 48.50f, "Nuevo", true, 8, "To Pimp a Butterfly"));
-
-			productos.add(new Producto("back-to-black.jpg", "Edición estándar de alta fidelidad", 32.00f, "Nuevo", true, 9, "Back to Black"));
-
-			productos.add(new Producto("nevermind.jpg", "30th Anniversary Edition con 7 pulgadas extra", 60.00f, "Nuevo", true, 10, "Nevermind"));
-
-			productos.add(new Producto("bocanada.jpg", "Prensaje argentino, edición de lujo", 42.00f, "Usado", false, 11, "Bocanada"));
-
-			productos.add(new Producto("midnights.jpg", "Moonstone Blue Edition, vinilo de color", 35.90f, "Nuevo", true, 12, "Midnights"));
-
-			productos.add(new Producto("the-wall.jpg", "Prensaje original de 1979, primera edición", 150.00f, "Usado", true, 13, "The Wall"));
-		}
-		return productos;
-		*/
 	}
 
-	public static boolean verificarDisponibilidad(Producto producto) {
-
-		List<Producto> productos = obtenerProductos();
-
-		if (producto == null) {
-			return false;
-		}
-
-		for (Producto p : productos) {
-			if (p.getIdProducto() == producto.getIdProducto()) {
-				return p.isDisponibilidad();
+	/**
+	 * Obtiene todos los productos de la base de datos
+	 * 
+	 * @return Lista de todos los productos
+	 */
+	public static List<Producto> obtenerProductos() {
+		try {
+			EntityManager entityManager = getEntityManager();
+			Query query = entityManager.createQuery("SELECT p FROM Producto p", Producto.class);
+			List<Producto> productos = query.getResultList();
+			
+			for (Producto p : productos) {
+				System.out.println(p.toString());
 			}
+			return productos;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
 		}
-
-		return false; // not found
 	}
 
-	public static boolean actualizarInventario(Producto producto) {
-		List<Producto> productos = obtenerProductos();
-
+	/**
+	 * Verifica si un producto está disponible
+	 * 
+	 * @param producto Producto a verificar
+	 * @return true si está disponible, false en caso contrario
+	 */
+	public static boolean verificarDisponibilidad(Producto producto) {
 		if (producto == null) {
 			return false;
 		}
 
-		for (Producto p : productos) {
-			if (p.getIdProducto() == producto.getIdProducto()) {
+		try {
+			Producto p = obtenerDetalles(producto.getIdProducto());
+			return p != null && p.isDisponibilidad();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * Actualiza la disponibilidad de un producto (lo marca como no disponible)
+	 * 
+	 * @param producto Producto a actualizar
+	 * @return true si se actualizó correctamente
+	 */
+	public static boolean actualizarInventario(Producto producto) {
+		if (producto == null) {
+			return false;
+		}
+
+		try {
+			EntityManager entityManager = getEntityManager();
+			entityManager.getTransaction().begin();
+			
+			Producto p = entityManager.find(Producto.class, producto.getIdProducto());
+			if (p != null) {
 				p.setDisponibilidad(false);
+				entityManager.merge(p);
+				entityManager.getTransaction().commit();
 				return true;
 			}
+			entityManager.getTransaction().rollback();
+			return false;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
 		}
-
-		return false; // not found
 	}
 
+	/**
+	 * Busca un producto por nombre
+	 * 
+	 * @param nombre Nombre del producto a buscar
+	 * @return Producto encontrado o null
+	 */
 	public static Producto buscar(String nombre) {
-		List<Producto> productos = obtenerProductos();
-
 		if (nombre == null) {
 			return null;
 		}
 
-		for (Producto p : productos) {
-			if (p.getNombre().equalsIgnoreCase(nombre)) {
-				return p;
-			}
+		try {
+			EntityManager entityManager = getEntityManager();
+			Query query = entityManager.createQuery("SELECT p FROM Producto p WHERE LOWER(p.nombre) LIKE LOWER(:nombre)", Producto.class);
+			query.setParameter("nombre", "%" + nombre + "%");
+			
+			List<Producto> resultados = query.getResultList();
+			return resultados.isEmpty() ? null : resultados.get(0);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	/**
+	 * Crea un nuevo producto en la base de datos
+	 * 
+	 * @param producto Producto a crear
+	 * @return true si se creó correctamente
+	 */
+	public static boolean crearProducto(Producto producto) {
+		if (producto == null) {
+			return false;
 		}
 
-		return null; // not found
+		try {
+			EntityManager entityManager = getEntityManager();
+			entityManager.getTransaction().begin();
+			entityManager.persist(producto);
+			entityManager.getTransaction().commit();
+			return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * Actualiza un producto existente
+	 * 
+	 * @param producto Producto a actualizar
+	 * @return true si se actualizó correctamente
+	 */
+	public static boolean actualizarProducto(Producto producto) {
+		if (producto == null) {
+			return false;
+		}
+
+		try {
+			EntityManager entityManager = getEntityManager();
+			entityManager.getTransaction().begin();
+			entityManager.merge(producto);
+			entityManager.getTransaction().commit();
+			return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * Elimina un producto de la base de datos
+	 * 
+	 * @param id ID del producto a eliminar
+	 * @return true si se eliminó correctamente
+	 */
+	public static boolean eliminarProducto(int id) {
+		try {
+			EntityManager entityManager = getEntityManager();
+			entityManager.getTransaction().begin();
+			
+			Producto p = entityManager.find(Producto.class, id);
+			if (p != null) {
+				entityManager.remove(p);
+				entityManager.getTransaction().commit();
+				return true;
+			}
+			entityManager.getTransaction().rollback();
+			return false;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
 	}
 }

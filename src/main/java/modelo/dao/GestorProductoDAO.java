@@ -5,6 +5,7 @@ import java.util.List;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
+import jakarta.persistence.Query;
 import modelo.entidad.Producto;
 
 public class GestorProductoDAO {
@@ -42,8 +43,18 @@ public class GestorProductoDAO {
 		return this.em.find(Producto.class, id);
 	}
 	
+	/**
+	 * Lee todos los productos de la base de datos
+	 * @return Lista de todos los productos
+	 */
 	public List<Producto> reedProducts() {
-		return null;
+		try {
+			Query query = this.em.createQuery("SELECT p FROM Producto p", Producto.class);
+			return query.getResultList();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 	
 	public boolean updateProduct(Producto p) {

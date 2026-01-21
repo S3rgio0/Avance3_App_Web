@@ -4,7 +4,14 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "producto")
@@ -37,8 +44,8 @@ public class Producto implements Serializable {
 	@Column (name = "disponibilidad")
 	private boolean disponibilidad;
 	
-
-	private static List<Producto> productos;
+	@ManyToMany(mappedBy = "productos", fetch = FetchType.LAZY)
+	private List<Compra> compras = new ArrayList<>();
 
 	public Producto() {
 	}
@@ -109,6 +116,14 @@ public class Producto implements Serializable {
 
 	public void setNombre(String nombre) {
 		this.nombre = nombre;
+	}
+
+	public List<Compra> getCompras() {
+		return compras;
+	}
+
+	public void setCompras(List<Compra> compras) {
+		this.compras = compras;
 	}
 
 	@Override
